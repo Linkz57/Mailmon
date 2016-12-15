@@ -85,7 +85,7 @@ then
 					esac
 				done
 			else
-				#echo "must not be a problem" > /dev/null
+				echo "must not be a problem" > /dev/null
 			fi
 			;;
 
