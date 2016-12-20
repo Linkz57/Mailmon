@@ -8,7 +8,7 @@
 ## Kyle originally wrote a very efficient and elegant script,
 ## which I have now stolen, modified, and bloated out to perform a similar job.
 ## modifications made by Tyler Francis on 2016-10-25
-## mod version 1.8
+## mod version 1.8.1
 
 
 ## Identify yourself to an aging IT department
@@ -29,41 +29,45 @@ lockout=false
 ## If a lock file exists, a previous iteration is taking longer than it should. Let's create or iterate a fail counter
 if test -e "drhelpful.lock"
 then
-        lockout=true
-        if ((`cat drhelpful.lock` > 0))
-        then
-                lockoutCount=`cat drhelpful.lock`
-                echo "$lockoutCount + 1" | bc | tee drhelpful.lock
-        else
-                printf 1 > drhelpful.lock
-        fi
+	lockout=true
+	if ((`cat drhelpful.lock` > 0))
+	then
+		lockoutCount=`cat drhelpful.lock`
+		echo "$lockoutCount + 1" | bc | tee drhelpful.lock
+	else
+		printf 1 > drhelpful.lock
+	fi
 else
-        ## If it doesn't already exist, let's create a lock file to fail any future iterations of this script that try to run while this iteration runs.
-        touch drhelpful.lock
+	## If it doesn't already exist, let's create a lock file to fail any future iterations of this script that try to run while this iteration runs.
+	touch drhelpful.lock
 fi
 
 ## Don't bother running if this script failed a lot within 24 hours.
-# if (( ((`cat drhelpful.rest_until` + 86400)) <= `date +%s`))
-# then
-#       exit 1
-# fi
+if test -e drhelpful.rest_until
+then
+        if (( ((`cat drhelpful.rest_until` + 86400)) <= `date +%s`))
+        then
+                exit 1
+        fi
+fi
+
 if $lockout
 then
         if ((`cat drhelpful.lock` >= $failAfterIteration))
-        then
-                printf `date +%s` > drhelpful.rest_until
-                rm -f drhelpful.lock
-                exit 1
-        fi
+	then
+		printf `date +%s` > drhelpful.rest_until
+		rm -f drhelpful.lock
+		exit 1
+	fi
 
-        if ((`cat drhelpful.lock` < $failAfterIteration))
-        then
-                printf "I don't mean to cause a fuss, but I'm trying to run again while another copy of me is already running. This might mean that I'm not good at my job, or that there's been a recent flood of email I'm having trouble parsing, or I don't have enough hardware resources at my disposal to perform my job, or who knows.\n\nFYI, here's my schedule:\n`crontab -l | grep $SCRIPTPATH` \nPlease SSH into $username@$hostname and do what you can.\nI don't want to innatate you with email, so if I have this problem $failAfterIteration times in a row, I'm going to stop trying for a day." | mail -s "I refuse to run, since I might be broken" $adminEmail
-                echo "I have failed to run less than five times in a row. If I fail more than 5 times in a row, I'll quit trying for 24 hours."
-                exit 1
-        fi
-        ## If it's not greater than, less than, or equal to a number: it probably isn't a number and may instead be empty or non-existent
-        ## Therefore we'll assume this script hasn't failed recently, 
+	if ((`cat drhelpful.lock` < $failAfterIteration))
+	then
+		printf "I don't mean to cause a fuss, but I'm trying to run again while another copy of me is already running. This might mean that I'm not good at my job, or that there's been a recent flood of email I'm having trouble parsing, or I don't have enough hardware resources at my disposal to perform my job, or who knows.\n\nFYI, here's my schedule:\n`crontab -l | grep $SCRIPTPATH` \nPlease SSH into $username@$hostname and do what you can.\nI don't want to innatate you with email, so if I have this problem $failAfterIteration times in a row, I'm going to stop trying for a day." | mail -s "I refuse to run, since I might be broken" $adminEmail
+		echo "I have failed to run less than five times in a row. If I fail more than 5 times in a row, I'll quit trying for 24 hours."
+		exit 1
+	fi
+	## If it's not greater than, less than, or equal to a number: it probably isn't a number and may instead be empty or non-existent
+	## Therefore we'll assume this script hasn't failed recently, 
 fi
 
 
@@ -87,7 +91,7 @@ cp /var/mail/$username $dPATH/mail.txt
 ## don't waste my time if you haven't received any email
 if [[ $(find $dPATH/mail.txt -type f -size +2c 2>/dev/null) ]]
 then
-        ## Apparently mail.txt is not empty
+	## Apparently mail.txt is not empty
         for line in `cat $dPATH/mail.txt`
         do
                 ## Find out who sent the message so you can reply to them, but make sure you're not mailing the SMTP server's postmaster
@@ -161,23 +165,24 @@ then
 		## Actually mail out the work done above.
 		mail -s "Robo Reply" tyler.francis@jelec.com $from < $dPATH/out.txt
 
-        fi
+	fi
 
-        ## When you've read an email with GNU Mailutils (at least in version 2.99.99) it will remove that block of text from /var/mail/username and append it to ~/mbox which I find neat. Let's do the same here.
-        cat /var/mail/$username >> ~/mbox
-        echo "" > /var/mail/$username
+	## When you've read an email with GNU Mailutils (at least in version 2.99.99) it will remove that block of text from /var/mail/username and append it to ~/mbox which I find neat. Let's do the same here.
+	cat /var/mail/$username >> ~/mbox
+	echo "" > /var/mail/$username
 
-        ## clean up after yourself.
-        rm -f $dPATH/out.txt
-        rm -f $dPATH/mail.txt
-        rm -f drhelpful.lock
+	## clean up after yourself.
+	rm -f $dPATH/out.txt
+	rm -f $dPATH/mail.txt
+	rm -f drhelpful.lock
+	rm -f drhelpful.rest_until
 
-#       echo done
-        exit 0
+#	echo done
+	exit 0
 else
-#       echo "no mail received"
-        rm -f drhelpful.lock
-        exit 0
+#	echo "no mail received"
+	rm -f drhelpful.lock
+	exit 0
 fi
 
 
